@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Browser AI Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .chat-container { width: 400px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; height: 500px; }
+        #chat-box { flex: 1; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px; background: #fafafa; }
+        .message { margin-bottom: 10px; line-height: 1.4; }
+        .user { text-align: right; color: #007bff; }
+        .ai { text-align: left; color: #28a745; }
+        .input-area { display: flex; gap: 10px; }
+        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:disabled { background: #ccc; }
+        #status { font-size: 12px; color: #666; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <h2>AI Chat App</h2>
+    <div id="status">Loading AI model into browser... Please wait.</div>
+    <div id="chat-box"></div>
+    <div class="input-area">
+        <input type="text" id="user-input" placeholder="Type a message..." disabled>
+        <button id="send-btn" onclick="sendMessage()" disabled>Send</button>
+    </div>
+</div>
+
+<script type="module">
+    import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0';
+
+    const statusDiv = document.getElementById('status');
+    const chatBox = document.getElementById('chat-box');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+
+    let generator;
+
+    async function loadModel() {
+        try {
+            // Load a tiny model optimized for browsers
+            generator = await pipeline('text-generation', 'Xenova/Qwen1.5-0.5B-Chat');
+            statusDiv.textContent = 'AI Ready!';
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+        } catch (err) {
+            statusDiv.textContent = 'Error loading model.';
+            console.error(err);
+        }
+    }
+
+    loadModel();
+
+    window.sendMessage = async function() {
+        const text = userInput.value.trim();
+        if (!text) return;
+
+        chatBox.innerHTML += `<div class="message user"><b>You:</b> ${text}</div>`;
+        userInput.value = '';
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        chatBox.innerHTML += `<div class="message ai" id="loading-ai"><b>AI:</b> Thinking...</div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        try {
+            const messages = [{ role: "user", content: text }];
+            const output = await generator(messages, { max_new_tokens: 100 });
+            
+            document.getElementById('loading-ai').remove();
+            
+            const aiReply = output[0].generated_text.at(-1).content;
+            chatBox.innerHTML += `<div class="message ai"><b>AI:</b> ${aiReply}</div>`;
+        } catch (err) {
+            document.getElementById('loading-ai').remove();
+            chatBox.innerHTML += `<div class="message ai"><b>AI:</b> Error generating response.</div>`;
+        }
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+</script>
+
+</body>
+</html>
